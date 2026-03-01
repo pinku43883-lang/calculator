@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search with History</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.dark-mode {
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i {
+            font-size: 28px;
+        }
+
+        .menu {
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .menu-item.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid white;
+        }
+
+        .menu-item i {
+            font-size: 20px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            padding: 40px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        .search-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .gcse-search {
+            margin-bottom: 30px;
+        }
+
+        /* History Panel */
+        .history-panel {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .dark-mode .history-panel {
+            background: #1e1e1e;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .dark-mode .history-header {
+            border-bottom-color: #333;
+        }
+
+        .history-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .dark-mode .history-title {
+            color: white;
+        }
+
+        .clear-all-btn {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        .clear-all-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        .dark-mode .history-item {
+            background: #2d2d2d;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .history-query {
+            font-size: 16px;
+            color: #333;
+            flex: 1;
+        }
+
+        .dark-mode .history-query {
+            color: white;
+        }
+
+        .history-time {
+            color: #666;
+            font-size: 14px;
+            margin-left: 15px;
+        }
+
+        .dark-mode .history-time {
+            color: #aaa;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ff4757;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-btn:hover {
+            background-color: rgba(255, 71, 87, 0.1);
+        }
+
+        .no-history {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 18px;
+        }
+
+        .dark-mode .no-history {
+            color: #aaa;
+        }
+
+        /* About Panel */
+        .about-panel {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .dark-mode .about-panel {
+            background: #1e1e1e;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .about-title {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .dark-mode .about-title {
+            color: white;
+        }
+
+        .about-content {
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .dark-mode .about-content {
+            color: #ddd;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-left: 10px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Mobile Menu Toggle */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+                padding-top: 80px;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <i class="fas fa-search"></i>
+            Search Pro
+        </div>
+        <ul class="menu">
+            <li class="menu-item active" onclick="showHome()">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </li>
+            <li class="menu-item" onclick="showHistory()">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </li>
+            <li class="menu-item" onclick="toggleDarkMode()">
+                <i class="fas fa-moon"></i>
+                <span>Dark Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span class="slider"></span>
+                </label>
+            </li>
+            <li class="menu-item" onclick="showAbout()">
+                <i class="fas fa-info-circle"></i>
+                <span>About</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <div class="search-container">
+            <!-- Google Custom Search -->
+            <script async src="https://cse.google.com/cse.js?cx=a1270637ee8564e99"></script>
+            <div class="gcse-search"></div>
+
+            <!-- History Panel -->
+            <div class="history-panel" id="historyPanel">
+                <div class="history-header">
+                    <h2 class="history-title">Search History</h2>
+                    <button class="clear-all-btn" onclick="clearAllHistory()">
+                        <i class="fas fa-trash"></i>
+                        Clear All
+                    </button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <!-- History items will be inserted here -->
+                </div>
+            </div>
+
+            <!-- About Panel -->
+            <div class="about-panel" id="aboutPanel">
+                <h2 class="about-title">About Search Pro</h2>
+                <div class="about-content">
+                    <p>Welcome to Search Pro, your advanced search solution powered by Google Custom Search.</p>
+                    <p>Features include:</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Powerful Google-powered search</li>
+                        <li>Complete search history tracking</li>
+                        <li>Dark mode for comfortable browsing</li>
+                        <li>Easy history management</li>
+                        <li>Responsive design for all devices</li>
+                    </ul>
+                    <p style="margin-top: 20px;">Your privacy is important to us. All history data is stored locally on your device and never shared with any third parties.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const historyPanel = document.getElementById('historyPanel');
+        const aboutPanel = document.getElementById('aboutPanel');
+        const historyList = document.getElementById('historyList');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const menuItems = document.querySelectorAll('.menu-item');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHistory();
+            setupSearchListener();
+            checkDarkModePreference();
+        });
+
+        // Show Home
+        function showHome() {
+            historyPanel.style.display = 'none';
+            aboutPanel.style.display = 'none';
+            document.querySelector('.gcse-search').style.display = 'block';
+            setActiveMenuItem(0);
+            if (window.innerWidth <= 768) toggleSidebar();
+        }
+
+        // Show History
+        function showHistory() {
+            historyPanel.style.display = 'block';
+            aboutPanel.style.display = 'none';
+            document.querySelector('.gcse-search').style.display = 'none';
+            setActiveMenuItem(1);
+            if (window.innerWidth <= 768) toggleSidebar();
+        }
+
+        // Show About
+        function showAbout() {
+            aboutPanel.style.display = 'block';
+            historyPanel.style.display = 'none';
+            document.querySelector('.gcse-search').style.display = 'none';
+            setActiveMenuItem(3);
+            if (window.innerWidth <= 768) toggleSidebar();
+        }
+
+        // Set active menu item
+        function setActiveMenuItem(index) {
+            menuItems.forEach((item, i) => {
+                if (i === index) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Toggle Sidebar (Mobile)
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+            mainContent.classList.toggle('expanded');
+        }
+
+        // Dark Mode Functionality
+        function toggleDarkMode() {
+            const body = document.body;
+            const sidebar = document.getElementById('sidebar');
+            body.classList.toggle('dark-mode');
+            sidebar.classList.toggle('dark-mode');
+            darkModeToggle.checked = body.classList.contains('dark-mode');
+            
+            // Save preference to localStorage
+            localStorage.setItem('darkMode', body.classList.contains('dark-mode'));
+            setActiveMenuItem(2);
+        }
+
+        function checkDarkModePreference() {
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            if (darkMode) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('sidebar').classList.add('dark-mode');
+                darkModeToggle.checked = true;
+            }
+        }
+
+        // History Management
+        let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
+
+        function saveSearch(query) {
+            if (!query.trim()) return;
+            
+            const searchItem = {
+                id: Date.now(),
+                query: query,
+                timestamp: new Date().toLocaleString()
+            };
+            
+            searchHistory.unshift(searchItem);
+            if (searchHistory.length > 50) {
+                searchHistory = searchHistory.slice(0, 50); // Keep only last 50 searches
+            }
+            
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+            loadHistory();
+        }
+
+        function loadHistory() {
+            if (searchHistory.length === 0) {
+                historyList.innerHTML = `
+                    <div class="no-history">
+                        <i class="fas fa-search" style="font-size: 48px; margin-bottom: 20px;"></i>
+                        <p>No search history yet</p>
+                        <p style="font-size: 14px; margin-top: 10px;">Your searches will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            historyList.innerHTML = searchHistory.map(item => `
+                <div class="history-item" data-id="${item.id}">
+                    <div class="history-query">
+                        <i class="fas fa-search" style="margin-right: 10px; color: #667eea;"></i>
+                        ${item.query}
+                    </div>
+                    <div class="history-time">
+                        ${item.timestamp}
+                    </div>
+                    <button class="delete-btn" onclick="deleteHistoryItem(${item.id})" title="Delete this search">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteHistoryItem(id) {
+            searchHistory = searchHistory.filter(item => item.id !== id);
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+            loadHistory();
+            
+            // Show confirmation
+            showNotification('Search deleted from history');
+        }
+
+        function clearAllHistory() {
+            if (searchHistory.length === 0) return;
+            
+            if (confirm('Are you sure you want to clear all search history?')) {
+                searchHistory = [];
+                localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+                loadHistory();
+                showNotification('All history cleared');
+            }
+        }
+
+        // Set up search listener for Google Custom Search
+        function setupSearchListener() {
+            // This function will be called when the Google CSE loads
+            window.addEventListener('load', function() {
+                // Find the search form
+                const searchForm = document.querySelector('form.gsc-search-box');
+                if (searchForm) {
+                    searchForm.addEventListener('submit', function(e) {
+                        setTimeout(() => {
+                            const searchInput = document.querySelector('input.gsc-input');
+                            if (searchInput && searchInput.value) {
+                                saveSearch(searchInput.value);
+                            }
+                        }, 100);
+                    });
+                }
+                
+                // Also listen for search results being shown
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList') {
+                            const searchInput = document.querySelector('input.gsc-input');
+                            const searchButton = document.querySelector('.gsc-search-button');
+                            
+                            if (searchButton) {
+                                searchButton.addEventListener('click', function() {
+                                    setTimeout(() => {
+                                        if (searchInput && searchInput.value) {
+                                            saveSearch(searchInput.value);
+                                        }
+                                    }, 100);
+                                });
+                            }
+                        }
+                    });
+                });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+        }
+
+        // Notification function
+        function showNotification(message) {
+            // Remove existing notification
+            const existingNotification = document.querySelector('.notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+
+            // Create notification
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                    z-index: 10000;
+                    animation: slideInRight 0.3s ease;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                ">
+                    <i class="fas fa-check-circle"></i>
+                    ${message}
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+            
+            // Add animation styles
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOutRight {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !document.querySelector('.menu-toggle').contains(event.target) &&
+                sidebar.classList.contains('active')) {
+                toggleSidebar();
+            }
+        });
+    </script>
+</body>
+</html>
